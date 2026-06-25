@@ -20,11 +20,11 @@ model = PiezoInversePINN().to(device)
 
 # FEM Data
 script_dir = os.path.dirname(os.path.abspath(__file__))
-file_path = os.path.join(script_dir, "..", "data", "FEM-Dataset.csv")
+file_path = os.path.join(script_dir, "..", "data", "Noisy-FEM-Dataset.csv")
 
 if not os.path.exists(file_path):
     raise FileNotFoundError(f"Dataset missing: {os.path.abspath(file_path)}\n"
-                            f"Please ensure 'comsol_pinn_dataset.csv' is placed inside the 'data/' directory.")
+                            f"Please ensure 'Noisy-FEM-Dataset.csv' is placed inside the 'data/' directory.")
 
 print(f"Loading FEM dataset from: {os.path.abspath(file_path)}")
 df_clean = pd.read_csv(file_path)
