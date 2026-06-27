@@ -12,7 +12,7 @@ torch.manual_seed(42)
 np.random.seed(42)
 torch.set_default_dtype(torch.float32)
 
-df = pd.read_csv("Raw-FEM-Dataset.txt", delim_whitespace=True, header=None)
+df = pd.read_csv("FEM-Dataset.txt", delim_whitespace=True, header=None)
 
 x_raw = df.iloc[:, 0].values
 x_coords = (x_raw - x_raw.min()) / (x_raw.max() - x_raw.min()) 
