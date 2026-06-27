@@ -41,3 +41,9 @@ This directory applies the identical constrained architecture to discrete, full-
 **1. To run the exact MMS verification:**
 ```bash
 python MMS-framework/main.py
+```
+
+**1. To run the exact MMS verification:**
+```bash
+python FEM-framework/main.py
+```
