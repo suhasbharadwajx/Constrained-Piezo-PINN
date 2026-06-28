@@ -122,7 +122,6 @@ err_margin = abs(final_e15_dim - true_e15_SI) / true_e15_SI * 100
 print(f"\nFINAL DISCOVERED e15: {final_e15_dim:.5f} C/m^2 (Target: {true_e15_SI:.5f})")
 print(f"Discovery Error: {err_margin:.4f}%\n")
 
-print("Generating 4-Panel Publication Graphics...")
 plt.rcParams.update({'font.size': 12})
 
 res = 100
