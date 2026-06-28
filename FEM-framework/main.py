@@ -12,7 +12,7 @@ torch.manual_seed(42)
 np.random.seed(42)
 torch.set_default_dtype(torch.float32)
 
-df = pd.read_csv("FEM-Dataset.txt", delim_whitespace=True, header=None)
+df = pd.read_csv("FEM-Dataset.txt", comment='%', delim_whitespace=True, header=None)
 
 x_raw = df.iloc[:, 0].values
 x_coords = (x_raw - x_raw.min()) / (x_raw.max() - x_raw.min()) 
@@ -104,7 +104,7 @@ def compute_loss(model, X_colloc, X_sens_batch, U_sens_batch):
 
 N_colloc = 25000
 X_domain = torch.rand(N_colloc, 3, device=device)
-X_domain[:, 2] = X_domain[:, 2] * 0.875
+X_domain[:, 2] = X_domain[:, 2] * 0.875 
 
 opt_adam = torch.optim.Adam(model.parameters(), lr=1e-3)
 scheduler = CosineAnnealingLR(opt_adam, T_max=15000, eta_min=1e-5)
@@ -113,6 +113,7 @@ pde_hist = []
 data_hist = []
 e15_hist = []
 
+start_time = time.time()
 for ep in range(15000):
     model.train()
     opt_adam.zero_grad()
@@ -151,61 +152,62 @@ def closure():
     return loss
 
 opt_lbfgs.step(closure)
-
 total_steps = list(range(len(pde_hist)))
+end_time = time.time()
+final_e15 = model.e15_pred.item() * e33_SI
+error_pct = abs(final_e15 - true_e15_SI) / true_e15_SI * 100
 
-plt.rcParams.update({'font.size': 12, 'font.family': 'DejaVu Sans'})
+print(f"{final_e15:.4f},{error_pct:.3f}")
 
 model.eval()
+c0_ref = 2.30e10
+e0_ref = 23.3
+eps0_ref = 1.30e-8
+L_ref = 10e-3
+t_ref = 5.71e-6
+U_ref = 1e-9
+Phi_ref = U_ref * (e0_ref / eps0_ref)
 
-res = 200 
+res = 200
 x_l = np.linspace(0, 1, res)
 z_l = np.linspace(0, 1, res)
 X_g, Z_g = np.meshgrid(x_l, z_l)
-
-t_snapshot_dimensional = 5.0e-6
-t_snapshot_normalized = t_snapshot_dimensional / t_ref
-
-pts = np.hstack([X_g.flatten()[:, None], 
-                 Z_g.flatten()[:, None], 
-                 np.full((res**2, 1), t_snapshot_normalized)])
+t_snapshot_normalized = 5.0e-6 / t_ref
+pts = np.hstack([X_g.flatten()[:, None], Z_g.flatten()[:, None], np.full((res**2, 1), t_snapshot_normalized)])
 grid_tensor = torch.tensor(pts, dtype=torch.float32, device=device)
 
 with torch.no_grad():
     u1_pred, u3_pred, phi_pred = model(grid_tensor)
-    
     u3_dimensional = (u3_pred.cpu().numpy().reshape(res, res) * U_ref) * 1e12 
-    phi_dimensional = (phi_pred.cpu().numpy().reshape(res, res) * Phi_ref)    
+    phi_dimensional = (phi_pred.cpu().numpy().reshape(res, res) * Phi_ref)   
     
 X_g_mm = X_g * 10.0
 Z_g_mm = Z_g * 10.0
 z_l_mm = z_l * 10.0
 
+plt.rcParams.update({'font.size': 12, 'font.family': 'DejaVu Sans'})
 fig = plt.figure(figsize=(18, 11), dpi=300)
 
 ax1 = plt.subplot(2, 2, 1)
 vmax = np.max(np.abs(u3_dimensional))
 c1 = ax1.contourf(X_g_mm, Z_g_mm, u3_dimensional, levels=60, cmap='RdBu_r', vmin=-vmax, vmax=vmax)
-ax1.set_title(r"Predicted Displacement $u_3$ at $t = 5.0 \mu s$")
+ax1.set_title(r"Displacement $u_3$ at $t = 5.0 \mu s$")
 ax1.set_xlabel("Domain $x_1$ (mm)")
 ax1.set_ylabel("Domain $x_3$ (mm)")
 cbar = fig.colorbar(c1, ax=ax1)
-cbar.set_label("Raw Displacement (pm)")
+cbar.set_label("Displacement (pm)")
 
 ax2 = plt.subplot(2, 2, 2)
-slice_idx = int(res * 0.125)
-
+slice_idx = int(res * 0.125) 
 line1 = ax2.plot(z_l_mm, u3_dimensional[:, slice_idx], 'b-', linewidth=2.5, label=r'Raw Displacement $u_3$')
 ax2.set_xlabel("Domain $x_3$ (mm)")
-ax2.set_ylabel(r"Raw Displacement $u_3$ (pm)", color='b', weight='bold')
+ax2.set_ylabel(r"Displacement $u_3$ (pm)", color='b', weight='bold')
 ax2.tick_params(axis='y', labelcolor='b')
 ax2.grid(True, alpha=0.3)
-
 ax2_twin = ax2.twinx()
 line2 = ax2_twin.plot(z_l_mm, phi_dimensional[:, slice_idx], 'r--', linewidth=2.5, label=r'Raw Electric Potential $\phi$')
-ax2_twin.set_ylabel(r"Raw Electric Potential $\phi$ (V)", color='r', weight='bold')
+ax2_twin.set_ylabel(r"Electric Potential $\phi$ (V)", color='r', weight='bold')
 ax2_twin.tick_params(axis='y', labelcolor='r')
-
 lines = line1 + line2
 labels = [l.get_label() for l in lines]
 ax2.legend(lines, labels, loc="lower left", framealpha=0.9)
@@ -215,7 +217,6 @@ ax3 = plt.subplot(2, 2, 3)
 ax3.plot(total_steps, pde_hist, color="#1f77b4", alpha=0.8, linewidth=2, label=r"$\mathcal{L}_{PDE}$")
 ax3.plot(total_steps, data_hist, color="#ff7f0e", alpha=0.8, linewidth=2, label=r"$\mathcal{L}_{Data}$")
 ax3.axvline(x=15000, color='gray', linestyle='--', alpha=0.7, label="L-BFGS Transition")
-
 ax3.set_yscale("log")
 ax3.set_title("Constrained Loss Dynamics (Adam + L-BFGS)")
 ax3.set_xlabel("Optimization Steps")
